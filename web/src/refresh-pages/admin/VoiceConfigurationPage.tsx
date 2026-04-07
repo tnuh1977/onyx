@@ -55,6 +55,12 @@ const STT_MODELS: ModelDetails[] = [
     providerType: "openai",
   },
   {
+    id: "whisper-local",
+    label: "Local Whisper",
+    subtitle: "Self-hosted Whisper server with a custom URL.",
+    providerType: "whisper_local",
+  },
+  {
     id: "azure-speech-stt",
     label: "Azure Speech",
     subtitle: "Speech to text in Microsoft Foundry Tools.",
@@ -128,6 +134,8 @@ function getProviderIcon(
       return AzureIcon;
     case "elevenlabs":
       return ElevenLabsIcon;
+    case "whisper_local":
+      return FallbackMicrophoneIcon;
     default:
       return FallbackMicrophoneIcon;
   }
@@ -143,6 +151,8 @@ function getProviderLabel(providerType: string): string {
       return "Azure";
     case "elevenlabs":
       return "ElevenLabs";
+    case "whisper_local":
+      return "Local Whisper";
     default:
       return providerType;
   }
@@ -454,7 +464,10 @@ export default function VoiceConfigurationPage() {
   };
 
   const isProviderConfigured = (provider?: VoiceProviderView): boolean => {
-    return !!provider?.has_api_key;
+    if (!provider) return false;
+    // Local Whisper uses a target URL instead of an API key.
+    if (provider.provider_type === "whisper_local") return !!provider.target_uri;
+    return !!provider.has_api_key;
   };
 
   const providersByType = useMemo(() => {

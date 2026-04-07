@@ -43,7 +43,8 @@ def _validate_voice_api_base(provider_type: str, api_base: str | None) -> str | 
     if api_base is None:
         return None
 
-    allow_private_network = provider_type.lower() == "azure"
+    # Both Azure and Local Whisper may run on private/internal networks.
+    allow_private_network = provider_type.lower() in ("azure", "whisper_local")
     try:
         return validate_outbound_http_url(
             api_base, allow_private_network=allow_private_network
@@ -233,7 +234,8 @@ async def test_voice_provider(
             )
         api_key = existing_provider.api_key.get_value(apply_mask=False)
 
-    if not api_key:
+    # Local Whisper servers do not require an API key.
+    if not api_key and request.provider_type.lower() != "whisper_local":
         raise OnyxError(
             OnyxErrorCode.VALIDATION_ERROR,
             "API key is required. Either provide api_key or set use_stored_key to true.",
