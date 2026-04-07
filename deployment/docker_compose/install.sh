@@ -15,6 +15,7 @@ USE_LOCAL_FILES=false # Disabled by default, use --local to skip downloading con
 NO_PROMPT=false
 DRY_RUN=false
 VERBOSE=false
+BUILD_FROM_SOURCE=false # Disabled by default, use --build to build images from source
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -38,6 +39,10 @@ while [[ $# -gt 0 ]]; do
             USE_LOCAL_FILES=true
             shift
             ;;
+        --build)
+            BUILD_FROM_SOURCE=true
+            shift
+            ;;
         --no-prompt)
             NO_PROMPT=true
             shift
@@ -59,6 +64,8 @@ while [[ $# -gt 0 ]]; do
             echo "  --include-craft  Enable Onyx Craft (AI-powered web app building)"
             echo "  --lite           Deploy Onyx Lite (no Vespa, Redis, or model servers)"
             echo "  --local          Use existing config files instead of downloading from GitHub"
+            echo "  --build          Build Docker images from source (requires git; slower but uses"
+            echo "                   this fork's code without waiting for CI to publish images)"
             echo "  --shutdown       Stop (pause) Onyx containers"
             echo "  --delete-data    Remove all Onyx data (containers, volumes, and files)"
             echo "  --no-prompt      Run non-interactively with defaults (for CI/automation)"
@@ -74,6 +81,7 @@ while [[ $# -gt 0 ]]; do
             echo "  $0 --delete-data      # Completely remove Onyx and all data"
             echo "  $0 --local            # Re-run using existing config files on disk"
             echo "  $0 --no-prompt        # Non-interactive install with defaults"
+            echo "  $0 --build            # Build images from source (uses this fork's code)"
             exit 0
             ;;
         *)
@@ -516,6 +524,8 @@ fi
 
 # GitHub repo base URL - using main branch
 GITHUB_RAW_URL="https://raw.githubusercontent.com/tnuh1977/onyx/main/deployment/docker_compose"
+# Git clone URL derived from the same repository
+REPO_GIT_URL="https://github.com/tnuh1977/onyx.git"
 
 # Check system requirements
 print_step "Verifying Docker installation"
@@ -1135,28 +1145,75 @@ if [[ "$USE_LATEST" = false ]] && [[ "$USE_LOCAL_FILES" = false ]]; then
     fi
 fi
 
-# Pull Docker images with reduced output
-print_step "Pulling Docker images"
-print_info "This may take several minutes depending on your internet connection..."
-echo ""
-print_info "Downloading Docker images (this may take a while)..."
-(cd "${INSTALL_ROOT}/deployment" && $COMPOSE_CMD $(compose_file_args) pull --quiet)
-if [ $? -eq 0 ]; then
-    print_success "Docker images downloaded successfully"
-else
-    print_error "Failed to download Docker images"
-    exit 1
-fi
+# Pull or build Docker images
+if [[ "$BUILD_FROM_SOURCE" = true ]]; then
+    # Build images from source so that this fork's code is used
+    print_step "Building Docker images from source"
+    SOURCE_DIR="${INSTALL_ROOT}/source"
 
-# Start services
-print_step "Starting Onyx services"
-print_info "Launching containers..."
-echo ""
-if [ "$USE_LATEST" = true ]; then
-    print_info "Force pulling latest images and recreating containers..."
-    (cd "${INSTALL_ROOT}/deployment" && $COMPOSE_CMD $(compose_file_args) up -d --pull always --force-recreate)
+    if ! command -v git &> /dev/null; then
+        print_error "git is required to build from source but was not found."
+        echo "  Install git (e.g. 'sudo apt-get install git') and re-run with --build."
+        exit 1
+    fi
+
+    if [ -d "${SOURCE_DIR}/.git" ]; then
+        print_info "Source repository already present at ${SOURCE_DIR}, pulling latest..."
+        (cd "${SOURCE_DIR}" && git pull --quiet)
+    else
+        print_info "Cloning ${REPO_GIT_URL} into ${SOURCE_DIR}..."
+        mkdir -p "${SOURCE_DIR}"
+        git clone --depth 1 "${REPO_GIT_URL}" "${SOURCE_DIR}"
+    fi
+
+    # Build compose file args relative to the source directory
+    source_compose_file_args() {
+        local args="-f deployment/docker_compose/docker-compose.yml"
+        if [[ "$LITE_MODE" = true ]] && [ -f "${SOURCE_DIR}/deployment/docker_compose/${LITE_COMPOSE_FILE}" ]; then
+            args="$args -f deployment/docker_compose/${LITE_COMPOSE_FILE}"
+        fi
+        echo "$args"
+    }
+
+    print_info "Building Docker images (this may take 20-40 minutes on first run)..."
+    echo ""
+    (cd "${SOURCE_DIR}" && $COMPOSE_CMD $(source_compose_file_args) build)
+    if [ $? -eq 0 ]; then
+        print_success "Docker images built successfully from source"
+    else
+        print_error "Failed to build Docker images from source"
+        exit 1
+    fi
+
+    # Start services using the source tree's compose file (build contexts are relative there)
+    print_step "Starting Onyx services"
+    print_info "Launching containers..."
+    echo ""
+    (cd "${SOURCE_DIR}" && $COMPOSE_CMD $(source_compose_file_args) up -d)
 else
-    (cd "${INSTALL_ROOT}/deployment" && $COMPOSE_CMD $(compose_file_args) up -d)
+    # Pull Docker images with reduced output
+    print_step "Pulling Docker images"
+    print_info "This may take several minutes depending on your internet connection..."
+    echo ""
+    print_info "Downloading Docker images (this may take a while)..."
+    (cd "${INSTALL_ROOT}/deployment" && $COMPOSE_CMD $(compose_file_args) pull --quiet)
+    if [ $? -eq 0 ]; then
+        print_success "Docker images downloaded successfully"
+    else
+        print_error "Failed to download Docker images"
+        exit 1
+    fi
+
+    # Start services
+    print_step "Starting Onyx services"
+    print_info "Launching containers..."
+    echo ""
+    if [ "$USE_LATEST" = true ]; then
+        print_info "Force pulling latest images and recreating containers..."
+        (cd "${INSTALL_ROOT}/deployment" && $COMPOSE_CMD $(compose_file_args) up -d --pull always --force-recreate)
+    else
+        (cd "${INSTALL_ROOT}/deployment" && $COMPOSE_CMD $(compose_file_args) up -d)
+    fi
 fi
 if [ $? -ne 0 ]; then
     print_error "Failed to start Onyx services"
