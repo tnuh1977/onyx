@@ -524,6 +524,8 @@ fi
 
 # GitHub repo base URL - using main branch
 GITHUB_RAW_URL="https://raw.githubusercontent.com/tnuh1977/onyx/main/deployment/docker_compose"
+# Git clone URL derived from the same repository
+REPO_GIT_URL="https://github.com/tnuh1977/onyx.git"
 
 # Check system requirements
 print_step "Verifying Docker installation"
@@ -1147,7 +1149,6 @@ fi
 if [[ "$BUILD_FROM_SOURCE" = true ]]; then
     # Build images from source so that this fork's code is used
     print_step "Building Docker images from source"
-    REPO_URL="https://github.com/tnuh1977/onyx.git"
     SOURCE_DIR="${INSTALL_ROOT}/source"
 
     if ! command -v git &> /dev/null; then
@@ -1160,18 +1161,23 @@ if [[ "$BUILD_FROM_SOURCE" = true ]]; then
         print_info "Source repository already present at ${SOURCE_DIR}, pulling latest..."
         (cd "${SOURCE_DIR}" && git pull --quiet)
     else
-        print_info "Cloning ${REPO_URL} into ${SOURCE_DIR}..."
+        print_info "Cloning ${REPO_GIT_URL} into ${SOURCE_DIR}..."
         mkdir -p "${SOURCE_DIR}"
-        git clone --depth 1 "${REPO_URL}" "${SOURCE_DIR}"
+        git clone --depth 1 "${REPO_GIT_URL}" "${SOURCE_DIR}"
     fi
+
+    # Build compose file args relative to the source directory
+    source_compose_file_args() {
+        local args="-f deployment/docker_compose/docker-compose.yml"
+        if [[ "$LITE_MODE" = true ]] && [ -f "${SOURCE_DIR}/deployment/docker_compose/${LITE_COMPOSE_FILE}" ]; then
+            args="$args -f deployment/docker_compose/${LITE_COMPOSE_FILE}"
+        fi
+        echo "$args"
+    }
 
     print_info "Building Docker images (this may take 20-40 minutes on first run)..."
     echo ""
-    (cd "${SOURCE_DIR}" && $COMPOSE_CMD -f deployment/docker_compose/docker-compose.yml $(
-        if [[ "$LITE_MODE" = true ]] && [ -f "deployment/docker_compose/${LITE_COMPOSE_FILE}" ]; then
-            echo "-f deployment/docker_compose/${LITE_COMPOSE_FILE}"
-        fi
-    ) build --no-cache)
+    (cd "${SOURCE_DIR}" && $COMPOSE_CMD $(source_compose_file_args) build)
     if [ $? -eq 0 ]; then
         print_success "Docker images built successfully from source"
     else
@@ -1183,11 +1189,7 @@ if [[ "$BUILD_FROM_SOURCE" = true ]]; then
     print_step "Starting Onyx services"
     print_info "Launching containers..."
     echo ""
-    (cd "${SOURCE_DIR}" && $COMPOSE_CMD -f deployment/docker_compose/docker-compose.yml $(
-        if [[ "$LITE_MODE" = true ]] && [ -f "deployment/docker_compose/${LITE_COMPOSE_FILE}" ]; then
-            echo "-f deployment/docker_compose/${LITE_COMPOSE_FILE}"
-        fi
-    ) up -d)
+    (cd "${SOURCE_DIR}" && $COMPOSE_CMD $(source_compose_file_args) up -d)
 else
     # Pull Docker images with reduced output
     print_step "Pulling Docker images"
