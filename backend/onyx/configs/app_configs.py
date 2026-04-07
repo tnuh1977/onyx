@@ -1146,7 +1146,9 @@ DB_READONLY_PASSWORD: str = urllib.parse.quote_plus(
 
 # File Store Configuration
 # Which backend to use for file storage: "s3" (S3/MinIO) or "postgres" (PostgreSQL Large Objects)
-FILE_STORE_BACKEND = os.environ.get("FILE_STORE_BACKEND", "s3")
+# Defaults to "postgres" so the server can start without requiring an S3/MinIO service.
+# Set FILE_STORE_BACKEND=s3 (e.g. via docker-compose) to use S3-compatible storage.
+FILE_STORE_BACKEND = os.environ.get("FILE_STORE_BACKEND", "postgres")
 
 S3_FILE_STORE_BUCKET_NAME = (
     os.environ.get("S3_FILE_STORE_BUCKET_NAME") or "onyx-file-store-bucket"
