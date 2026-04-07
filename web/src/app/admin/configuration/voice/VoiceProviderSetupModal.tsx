@@ -60,6 +60,7 @@ const PROVIDER_LABELS: Record<string, string> = {
   openai: "OpenAI",
   azure: "Azure Speech Services",
   elevenlabs: "ElevenLabs",
+  whisper_local: "Local Whisper",
 };
 
 const PROVIDER_API_KEY_URLS: Record<string, string> = {
@@ -72,6 +73,7 @@ const PROVIDER_LOGO_URLS: Record<string, string> = {
   openai: "/Openai.svg",
   azure: "/Azure.png",
   elevenlabs: "/ElevenLabs.svg",
+  whisper_local: "/Openai.svg",
 };
 
 const PROVIDER_DOCS_URLS: Record<string, string> = {
@@ -231,6 +233,8 @@ export default function VoiceProviderSetupModal({
 
   const canConnect = (() => {
     if (selectedLlmProviderId) return true;
+    if (providerType === "whisper_local")
+      return isEditing ? true : !!targetUri.trim();
     if (!isEditing && !apiKey) return false;
     if (providerType === "azure" && !isEditing && !targetUri) return false;
     return true;
@@ -282,7 +286,13 @@ export default function VoiceProviderSetupModal({
       // Test the connection first (skip if reusing LLM provider key - validated on save)
       if (!selectedLlmProviderId) {
         setPhase("validating");
-        setMessage({ kind: "status", text: "Validating API key..." });
+        setMessage({
+          kind: "status",
+          text:
+            providerType === "whisper_local"
+              ? "Connecting to server..."
+              : "Validating API key...",
+        });
 
         const testResponse = await testVoiceProvider({
           provider_type: providerType,
@@ -304,7 +314,10 @@ export default function VoiceProviderSetupModal({
 
         setMessage({
           kind: "status",
-          text: "API key validated. Saving provider...",
+          text:
+            providerType === "whisper_local"
+              ? "Server reachable. Saving provider..."
+              : "API key validated. Saving provider...",
         });
       }
 
@@ -353,86 +366,133 @@ export default function VoiceProviderSetupModal({
         />
         <Modal.Body>
           <Section gap={1} alignItems="stretch">
-            <FormField name="api_key" state={formFieldState} className="w-full">
-              <FormField.Label>API Key</FormField.Label>
-              <FormField.Description>
-                {isEditing ? (
-                  "Leave blank to keep existing key"
-                ) : (
-                  <>
-                    Paste your{" "}
-                    <a
-                      href={PROVIDER_API_KEY_URLS[providerType]}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="underline"
-                    >
-                      API key
-                    </a>{" "}
-                    from {label} to access your models.
-                  </>
-                )}
-              </FormField.Description>
-              <FormField.Control asChild>
-                {providerType === "openai" &&
-                existingApiKeyOptions.length > 0 ? (
-                  <InputComboBox
-                    placeholder={isEditing ? "••••••••" : "Enter API key"}
-                    value={apiKey}
-                    onChange={(e) => {
-                      setApiKey(e.target.value);
-                      setApiKeyChanged(true);
-                      setSelectedLlmProviderId(null);
-                      setMessage(null);
-                    }}
-                    onValueChange={(value) => {
-                      setApiKey(value);
-                      // Check if this is an existing key
-                      const llmProviderId = llmProviderMap.get(value);
-                      if (llmProviderId) {
-                        setSelectedLlmProviderId(llmProviderId);
-                        setApiKeyChanged(false);
-                      } else {
-                        setSelectedLlmProviderId(null);
+            {providerType !== "whisper_local" && (
+              <FormField name="api_key" state={formFieldState} className="w-full">
+                <FormField.Label>API Key</FormField.Label>
+                <FormField.Description>
+                  {isEditing ? (
+                    "Leave blank to keep existing key"
+                  ) : (
+                    <>
+                      Paste your{" "}
+                      <a
+                        href={PROVIDER_API_KEY_URLS[providerType]}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline"
+                      >
+                        API key
+                      </a>{" "}
+                      from {label} to access your models.
+                    </>
+                  )}
+                </FormField.Description>
+                <FormField.Control asChild>
+                  {providerType === "openai" &&
+                  existingApiKeyOptions.length > 0 ? (
+                    <InputComboBox
+                      placeholder={isEditing ? "••••••••" : "Enter API key"}
+                      value={apiKey}
+                      onChange={(e) => {
+                        setApiKey(e.target.value);
                         setApiKeyChanged(true);
-                      }
-                      setMessage(null);
+                        setSelectedLlmProviderId(null);
+                        setMessage(null);
+                      }}
+                      onValueChange={(value) => {
+                        setApiKey(value);
+                        // Check if this is an existing key
+                        const llmProviderId = llmProviderMap.get(value);
+                        if (llmProviderId) {
+                          setSelectedLlmProviderId(llmProviderId);
+                          setApiKeyChanged(false);
+                        } else {
+                          setSelectedLlmProviderId(null);
+                          setApiKeyChanged(true);
+                        }
+                        setMessage(null);
+                      }}
+                      options={existingApiKeyOptions}
+                      separatorLabel="Reuse OpenAI API Keys"
+                      strict={false}
+                      showAddPrefix
+                    />
+                  ) : (
+                    <PasswordInputTypeIn
+                      placeholder={isEditing ? "••••••••" : "Enter API key"}
+                      value={apiKey}
+                      onChange={(e) => {
+                        setApiKey(e.target.value);
+                        setApiKeyChanged(true);
+                        setMessage(null);
+                      }}
+                      showClearButton={false}
+                    />
+                  )}
+                </FormField.Control>
+                {isProcessing ? (
+                  <FormField.APIMessage
+                    state="loading"
+                    messages={{
+                      loading: message?.text ?? "Validating API key...",
                     }}
-                    options={existingApiKeyOptions}
-                    separatorLabel="Reuse OpenAI API Keys"
-                    strict={false}
-                    showAddPrefix
                   />
-                ) : (
-                  <PasswordInputTypeIn
-                    placeholder={isEditing ? "••••••••" : "Enter API key"}
-                    value={apiKey}
+                ) : message ? (
+                  <FormField.Message
+                    messages={{
+                      idle: "",
+                      error: message.kind === "error" ? message.text : "",
+                      success: message.kind === "success" ? message.text : "",
+                    }}
+                  />
+                ) : null}
+              </FormField>
+            )}
+
+            {providerType === "whisper_local" && (
+              <FormField
+                name="target_uri"
+                state={formFieldState}
+                className="w-full"
+              >
+                <FormField.Label>Server URL</FormField.Label>
+                <FormField.Description>
+                  {isEditing
+                    ? "Leave blank to keep the existing URL."
+                    : "Base URL of your local Whisper server, e.g. http://localhost:8080"}
+                </FormField.Description>
+                <FormField.Control asChild>
+                  <InputTypeIn
+                    placeholder={
+                      isEditing
+                        ? "Leave blank to keep existing"
+                        : "http://localhost:8080"
+                    }
+                    value={targetUri}
                     onChange={(e) => {
-                      setApiKey(e.target.value);
-                      setApiKeyChanged(true);
+                      setTargetUri(e.target.value);
                       setMessage(null);
                     }}
-                    showClearButton={false}
                   />
-                )}
-              </FormField.Control>
-              {isProcessing ? (
-                <FormField.APIMessage
-                  state="loading"
-                  messages={{
-                    loading: message?.text ?? "Validating API key...",
-                  }}
-                />
-              ) : message ? (
-                <FormField.Message
-                  messages={{
-                    idle: "",
-                    error: message.kind === "error" ? message.text : "",
-                    success: message.kind === "success" ? message.text : "",
-                  }}
-                />
-              ) : null}
-            </FormField>
+                </FormField.Control>
+                {isProcessing ? (
+                  <FormField.APIMessage
+                    state="loading"
+                    messages={{
+                      loading: message?.text ?? "Connecting...",
+                    }}
+                  />
+                ) : message ? (
+                  <FormField.Message
+                    messages={{
+                      idle: "",
+                      error: message.kind === "error" ? message.text : "",
+                      success: message.kind === "success" ? message.text : "",
+                    }}
+                  />
+                ) : null}
+              </FormField>
+            )}
 
             {providerType === "azure" && (
               <Vertical
@@ -454,20 +514,21 @@ export default function VoiceProviderSetupModal({
               </Vertical>
             )}
 
-            {providerType === "openai" && mode === "stt" && (
-              <Horizontal title="STT Model" center nonInteractive>
-                <InputSelect value={sttModel} onValueChange={setSttModel}>
-                  <InputSelect.Trigger />
-                  <InputSelect.Content>
-                    {OPENAI_STT_MODELS.map((model) => (
-                      <InputSelect.Item key={model.id} value={model.id}>
-                        {model.name}
-                      </InputSelect.Item>
-                    ))}
-                  </InputSelect.Content>
-                </InputSelect>
-              </Horizontal>
-            )}
+            {(providerType === "openai" || providerType === "whisper_local") &&
+              mode === "stt" && (
+                <Horizontal title="STT Model" center nonInteractive>
+                  <InputSelect value={sttModel} onValueChange={setSttModel}>
+                    <InputSelect.Trigger />
+                    <InputSelect.Content>
+                      {OPENAI_STT_MODELS.map((model) => (
+                        <InputSelect.Item key={model.id} value={model.id}>
+                          {model.name}
+                        </InputSelect.Item>
+                      ))}
+                    </InputSelect.Content>
+                  </InputSelect>
+                </Horizontal>
+              )}
 
             {providerType === "openai" && mode === "tts" && (
               <Vertical
