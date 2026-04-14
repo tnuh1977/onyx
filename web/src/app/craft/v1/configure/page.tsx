@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import * as SettingsLayouts from "@/layouts/settings-layouts";
 import { Section } from "@/layouts/general-layouts";
-import * as InputLayouts from "@/layouts/input-layouts";
+import { InputHorizontal } from "@opal/layouts";
 import {
   useBuildSessionStore,
   useIsPreProvisioning,
@@ -35,20 +35,19 @@ import {
 import { ConfirmEntityModal } from "@/components/modals/ConfirmEntityModal";
 import { getSourceMetadata } from "@/lib/sources";
 import { deleteConnector } from "@/app/craft/services/apiServices";
-import { Button } from "@opal/components";
+import { Button, Divider } from "@opal/components";
 import {
   OAUTH_STATE_KEY,
   getDemoDataEnabled,
   setDemoDataCookie,
 } from "@/app/craft/v1/constants";
-import Separator from "@/refresh-components/Separator";
 import Switch from "@/refresh-components/inputs/Switch";
 import SimpleTooltip from "@/refresh-components/SimpleTooltip";
 import NotAllowedModal from "@/app/craft/onboarding/components/NotAllowedModal";
 import { useOnboarding } from "@/app/craft/onboarding/BuildOnboardingProvider";
 import { useLLMProviders } from "@/hooks/useLLMProviders";
 import { useUser } from "@/providers/UserProvider";
-import { getProviderIcon } from "@/app/admin/configuration/llm/utils";
+import { getModelIcon } from "@/lib/llmConfig";
 import {
   getBuildUserPersona,
   getPersonaInfo,
@@ -408,7 +407,7 @@ export default function BuildConfigPage() {
                 height="fit"
               >
                 <Card>
-                  <InputLayouts.Horizontal
+                  <InputHorizontal
                     title="Your Demo Persona"
                     description={
                       firstName && lastName && positionText
@@ -436,7 +435,7 @@ export default function BuildConfigPage() {
                         <SvgSettings className="w-5 h-5" />
                       </button>
                     </SimpleTooltip>
-                  </InputLayouts.Horizontal>
+                  </InputHorizontal>
                 </Card>
                 <Card
                   className={
@@ -455,10 +454,11 @@ export default function BuildConfigPage() {
                         : ""
                     }`}
                   >
-                    <InputLayouts.Horizontal
+                    <InputHorizontal
                       title="Default LLM"
                       description="Select the language model to craft with"
                       center
+                      withLabel
                     >
                       <BuildLLMPopover
                         currentSelection={pendingLlmSelection}
@@ -475,19 +475,19 @@ export default function BuildConfigPage() {
                         >
                           {pendingLlmSelection?.provider &&
                             (() => {
-                              const ProviderIcon = getProviderIcon(
+                              const ModelIcon = getModelIcon(
                                 pendingLlmSelection.provider
                               );
-                              return <ProviderIcon className="w-4 h-4" />;
+                              return <ModelIcon className="w-4 h-4" />;
                             })()}
                           <Text mainUiAction>{pendingLlmDisplayName}</Text>
                           <SvgChevronDown className="w-4 h-4 text-text-03" />
                         </button>
                       </BuildLLMPopover>
-                    </InputLayouts.Horizontal>
+                    </InputHorizontal>
                   </div>
                 </Card>
-                <Separator />
+                <Divider />
                 <div className="w-full flex items-center justify-between">
                   <div className="flex flex-col gap-0.25">
                     <Text mainContentEmphasis text04>

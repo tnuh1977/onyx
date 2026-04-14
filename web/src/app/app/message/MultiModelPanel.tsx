@@ -5,7 +5,7 @@ import { Button } from "@opal/components";
 import { Text } from "@opal/components";
 import { ContentAction } from "@opal/layouts";
 import { SvgEyeOff, SvgX } from "@opal/icons";
-import { getProviderIcon } from "@/app/admin/configuration/llm/utils";
+import { getModelIcon } from "@/lib/llmConfig";
 import AgentMessage, {
   AgentMessageProps,
 } from "@/app/app/message/messageComponents/AgentMessage";
@@ -28,6 +28,8 @@ export interface MultiModelPanelProps {
   isNonPreferredInSelection: boolean;
   /** Callback when user clicks this panel to select as preferred */
   onSelect: () => void;
+  /** Callback to deselect this panel as preferred */
+  onDeselect?: () => void;
   /** Callback to hide/show this panel */
   onToggleVisibility: () => void;
   /** Props to pass through to AgentMessage */
@@ -63,6 +65,7 @@ export default function MultiModelPanel({
   isHidden,
   isNonPreferredInSelection,
   onSelect,
+  onDeselect,
   onToggleVisibility,
   agentMessageProps,
   errorMessage,
@@ -71,7 +74,7 @@ export default function MultiModelPanel({
   errorStackTrace,
   errorDetails,
 }: MultiModelPanelProps) {
-  const ProviderIcon = getProviderIcon(provider, modelName);
+  const ModelIcon = getModelIcon(provider, modelName);
 
   const handlePanelClick = useCallback(() => {
     if (!isHidden && !isPreferred) onSelect();
@@ -88,16 +91,30 @@ export default function MultiModelPanel({
         sizePreset="main-ui"
         variant="body"
         paddingVariant="lg"
-        icon={ProviderIcon}
+        icon={ModelIcon}
         title={isHidden ? markdown(`~~${displayName}~~`) : displayName}
         rightChildren={
           <div className="flex items-center gap-1 px-2">
             {isPreferred && (
-              <span className="text-action-link-05 shrink-0">
-                <Text font="secondary-body" color="inherit" nowrap>
-                  Preferred Response
-                </Text>
-              </span>
+              <>
+                <span className="text-action-link-05 shrink-0">
+                  <Text font="secondary-body" color="inherit" nowrap>
+                    Preferred Response
+                  </Text>
+                </span>
+                {onDeselect && (
+                  <Button
+                    prominence="tertiary"
+                    icon={SvgX}
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeselect();
+                    }}
+                    tooltip="Deselect preferred response"
+                  />
+                )}
+              </>
             )}
             {!isPreferred && (
               <Button
@@ -146,6 +163,7 @@ export default function MultiModelPanel({
           <AgentMessage
             {...agentMessageProps}
             hideFooter={isNonPreferredInSelection}
+            disableTTS
           />
         </div>
       )}

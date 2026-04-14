@@ -5,6 +5,7 @@ import { errorHandlingFetcher } from "@/lib/fetcher";
 import { SWR_KEYS } from "@/lib/swr-keys";
 import {
   LLMProviderDescriptor,
+  LLMProviderName,
   LLMProviderResponse,
   LLMProviderView,
   WellKnownLLMProviderDescriptor,
@@ -48,11 +49,15 @@ export function useLLMProviders(personaId?: number) {
       ? SWR_KEYS.llmProvidersForPersona(personaId)
       : SWR_KEYS.llmProviders;
 
+  // `revalidateIfStale` is intentionally left at its default (true), unlike
+  // `useAdminLLMProviders` below. Admin edits call `refreshLlmProviderCaches`,
+  // but persona-scoped keys are orphaned when that runs, so `mutate` on them
+  // is a no-op. Mount-time revalidation picks up the edits on next nav.
+  // `dedupingInterval: 60000` keeps this off the hot path.
   const { data, error, mutate } = useSWR<
     LLMProviderResponse<LLMProviderDescriptor>
   >(url, errorHandlingFetcher, {
     revalidateOnFocus: false,
-    revalidateIfStale: false,
     dedupingInterval: 60000,
   });
 
@@ -138,12 +143,14 @@ export function useAdminLLMProviders() {
  * Used inside individual provider modals to pre-populate model lists
  * before the user has entered credentials.
  *
- * @param providerEndpoint - The provider's API endpoint name (e.g. "openai", "anthropic").
+ * @param providerName - The provider's API endpoint name (e.g. "openai", "anthropic").
  *   Pass `null` to suppress the request.
  */
-export function useWellKnownLLMProvider(providerEndpoint: string | null) {
+export function useWellKnownLLMProvider(providerName: LLMProviderName) {
   const { data, error, isLoading } = useSWR<WellKnownLLMProviderDescriptor>(
-    providerEndpoint ? SWR_KEYS.wellKnownLlmProvider(providerEndpoint) : null,
+    providerName && providerName !== LLMProviderName.CUSTOM
+      ? SWR_KEYS.wellKnownLlmProvider(providerName)
+      : null,
     errorHandlingFetcher,
     {
       revalidateOnFocus: false,
@@ -154,6 +161,35 @@ export function useWellKnownLLMProvider(providerEndpoint: string | null) {
 
   return {
     wellKnownLLMProvider: data ?? null,
+    isLoading,
+    error,
+  };
+}
+
+export interface CustomProviderOption {
+  value: string;
+  label: string;
+}
+
+/**
+ * Fetches the list of LiteLLM provider names available for custom provider
+ * configuration (i.e. providers that don't have a dedicated well-known modal).
+ *
+ * Hits `GET /api/admin/llm/custom-provider-names`.
+ */
+export function useCustomProviderNames() {
+  const { data, error, isLoading } = useSWR<CustomProviderOption[]>(
+    SWR_KEYS.customProviderNames,
+    errorHandlingFetcher,
+    {
+      revalidateOnFocus: false,
+      revalidateIfStale: false,
+      dedupingInterval: 60000,
+    }
+  );
+
+  return {
+    customProviderNames: data ?? null,
     isLoading,
     error,
   };

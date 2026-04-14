@@ -11,12 +11,13 @@ import {
   TextArrayField,
   TextFormField,
 } from "@/components/Field";
-import { Button } from "@opal/components";
+import { Button, Divider } from "@opal/components";
 import { MinimalPersonaSnapshot } from "@/app/admin/agents/interfaces";
 import DocumentSetCard from "@/sections/cards/DocumentSetCard";
 import CollapsibleSection from "@/app/admin/agents/CollapsibleSection";
 import { StandardAnswerCategoryResponse } from "@/components/standardAnswers/getStandardAnswerCategoriesIfEE";
 import { StandardAnswerCategoryDropdownField } from "@/components/standardAnswers/StandardAnswerCategoryDropdown";
+import InputComboBox from "@/refresh-components/inputs/InputComboBox";
 import { RadioGroup } from "@/components/ui/radio-group";
 import { RadioGroupItemField } from "@/components/ui/RadioGroupItemField";
 import { AlertCircle } from "lucide-react";
@@ -38,7 +39,6 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import Separator from "@/refresh-components/Separator";
 import { CheckboxField } from "@/refresh-components/form/LabeledCheckboxField";
 
 export interface SlackChannelConfigFormFieldsProps {
@@ -125,6 +125,24 @@ export function SlackChannelConfigFormFields({
   const selectableSets = useMemo(() => {
     return documentSets.filter((ds) => !documentSetContainsSync(ds));
   }, [documentSets]);
+
+  const searchAgentOptions = useMemo(
+    () =>
+      availableAgents.map((persona) => ({
+        label: persona.name,
+        value: String(persona.id),
+      })),
+    [availableAgents]
+  );
+
+  const nonSearchAgentOptions = useMemo(
+    () =>
+      nonSearchAgents.map((persona) => ({
+        label: persona.name,
+        value: String(persona.id),
+      })),
+    [nonSearchAgents]
+  );
 
   useEffect(() => {
     const invalidSelected = values.document_sets.filter((dsId: number) =>
@@ -355,12 +373,14 @@ export function SlackChannelConfigFormFields({
               </>
             </SubLabel>
 
-            <SelectorFormField
-              name="persona_id"
-              options={availableAgents.map((persona) => ({
-                name: persona.name,
-                value: persona.id,
-              }))}
+            <InputComboBox
+              placeholder="Search for an agent..."
+              value={String(values.persona_id ?? "")}
+              onValueChange={(val) =>
+                setFieldValue("persona_id", val ? Number(val) : null)
+              }
+              options={searchAgentOptions}
+              strict
             />
             {viewSyncEnabledAgents && syncEnabledAgents.length > 0 && (
               <div className="mt-4">
@@ -419,17 +439,19 @@ export function SlackChannelConfigFormFields({
               </>
             </SubLabel>
 
-            <SelectorFormField
-              name="persona_id"
-              options={nonSearchAgents.map((persona) => ({
-                name: persona.name,
-                value: persona.id,
-              }))}
+            <InputComboBox
+              placeholder="Search for an agent..."
+              value={String(values.persona_id ?? "")}
+              onValueChange={(val) =>
+                setFieldValue("persona_id", val ? Number(val) : null)
+              }
+              options={nonSearchAgentOptions}
+              strict
             />
           </div>
         )}
       </div>
-      <Separator className="my-4" />
+      <Divider />
       <Accordion type="multiple" className="gap-y-2 w-full">
         {values.knowledge_source !== "non_search_agent" && (
           <AccordionItem value="search-options">

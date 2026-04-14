@@ -15,9 +15,10 @@ import PasswordInputTypeIn from "@/refresh-components/inputs/PasswordInputTypeIn
 import InputSelect from "@/refresh-components/inputs/InputSelect";
 import InputComboBox from "@/refresh-components/inputs/InputComboBox";
 import { FormField } from "@/refresh-components/form/FormField";
-import { Vertical, Horizontal } from "@/layouts/input-layouts";
+import { InputVertical, InputHorizontal } from "@opal/layouts";
 import { Section } from "@/layouts/general-layouts";
-import { SvgArrowExchange, SvgOnyxLogo } from "@opal/icons";
+import { SvgArrowExchange } from "@opal/icons";
+import { SvgOnyxLogo } from "@opal/logos";
 import { Disabled } from "@opal/core";
 import type { IconProps } from "@opal/types";
 import { VoiceProviderView } from "@/hooks/useVoiceProviders";
@@ -444,6 +445,10 @@ export default function VoiceProviderSetupModal({
                       error: message.kind === "error" ? message.text : "",
                       success: message.kind === "success" ? message.text : "",
                     }}
+                    options={existingApiKeyOptions}
+                    separatorLabel="Reuse OpenAI API Keys"
+                    strict={false}
+                    createPrefix="Add"
                   />
                 ) : null}
               </FormField>
@@ -495,12 +500,12 @@ export default function VoiceProviderSetupModal({
             )}
 
             {providerType === "azure" && (
-              <Vertical
+              <InputVertical
                 title="Target URI"
                 subDescription={markdown(
                   "Paste the endpoint shown in [Azure Portal (Keys and Endpoint)](https://portal.azure.com/). Onyx extracts the speech region from this URL. Examples: https://westus.api.cognitive.microsoft.com/ or https://westus.tts.speech.microsoft.com/."
                 )}
-                nonInteractive
+                withLabel
               >
                 <InputTypeIn
                   placeholder={
@@ -511,7 +516,7 @@ export default function VoiceProviderSetupModal({
                   value={targetUri}
                   onChange={(e) => setTargetUri(e.target.value)}
                 />
-              </Vertical>
+              </InputVertical>
             )}
 
             {(providerType === "openai" || providerType === "whisper_local") &&
@@ -531,10 +536,10 @@ export default function VoiceProviderSetupModal({
               )}
 
             {providerType === "openai" && mode === "tts" && (
-              <Vertical
+              <InputVertical
                 title="Default Model"
                 subDescription="This model will be used by Onyx by default for text-to-speech."
-                nonInteractive
+                withLabel
               >
                 <InputSelect value={ttsModel} onValueChange={setTtsModel}>
                   <InputSelect.Trigger />
@@ -546,11 +551,11 @@ export default function VoiceProviderSetupModal({
                     ))}
                   </InputSelect.Content>
                 </InputSelect>
-              </Vertical>
+              </InputVertical>
             )}
 
             {mode === "tts" && (
-              <Vertical
+              <InputVertical
                 title="Voice"
                 subDescription={markdown(
                   `This voice will be used for spoken responses. See full list of supported languages and voices at [${
@@ -560,7 +565,7 @@ export default function VoiceProviderSetupModal({
                     PROVIDER_DOCS_URLS[providerType]
                   }).`
                 )}
-                nonInteractive
+                withLabel
               >
                 <InputComboBox
                   value={defaultVoice}
@@ -574,7 +579,7 @@ export default function VoiceProviderSetupModal({
                   disabled={isLoadingVoices}
                   strict={false}
                 />
-              </Vertical>
+              </InputVertical>
             )}
           </Section>
         </Modal.Body>

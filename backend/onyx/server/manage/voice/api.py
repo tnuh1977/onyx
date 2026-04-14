@@ -3,8 +3,9 @@ from fastapi import Depends
 from fastapi import Response
 from sqlalchemy.orm import Session
 
-from onyx.auth.users import current_admin_user
+from onyx.auth.permissions import require_permission
 from onyx.db.engine.sql_engine import get_session
+from onyx.db.enums import Permission
 from onyx.db.models import LLMProvider as LLMProviderModel
 from onyx.db.models import User
 from onyx.db.models import VoiceProvider
@@ -74,7 +75,7 @@ def _provider_to_view(provider: VoiceProvider) -> VoiceProviderView:
 
 @admin_router.get("/providers")
 def list_voice_providers(
-    _: User = Depends(current_admin_user),
+    _: User = Depends(require_permission(Permission.FULL_ADMIN_PANEL_ACCESS)),
     db_session: Session = Depends(get_session),
 ) -> list[VoiceProviderView]:
     """List all configured voice providers."""
@@ -85,7 +86,7 @@ def list_voice_providers(
 @admin_router.post("/providers")
 async def upsert_voice_provider_endpoint(
     request: VoiceProviderUpsertRequest,
-    _: User = Depends(current_admin_user),
+    _: User = Depends(require_permission(Permission.FULL_ADMIN_PANEL_ACCESS)),
     db_session: Session = Depends(get_session),
 ) -> VoiceProviderView:
     """Create or update a voice provider."""
@@ -154,7 +155,7 @@ async def upsert_voice_provider_endpoint(
 )
 def delete_voice_provider_endpoint(
     provider_id: int,
-    _: User = Depends(current_admin_user),
+    _: User = Depends(require_permission(Permission.FULL_ADMIN_PANEL_ACCESS)),
     db_session: Session = Depends(get_session),
 ) -> Response:
     """Delete a voice provider."""
@@ -166,7 +167,7 @@ def delete_voice_provider_endpoint(
 @admin_router.post("/providers/{provider_id}/activate-stt")
 def activate_stt_provider_endpoint(
     provider_id: int,
-    _: User = Depends(current_admin_user),
+    _: User = Depends(require_permission(Permission.FULL_ADMIN_PANEL_ACCESS)),
     db_session: Session = Depends(get_session),
 ) -> VoiceProviderView:
     """Set a voice provider as the default STT provider."""
@@ -178,7 +179,7 @@ def activate_stt_provider_endpoint(
 @admin_router.post("/providers/{provider_id}/deactivate-stt")
 def deactivate_stt_provider_endpoint(
     provider_id: int,
-    _: User = Depends(current_admin_user),
+    _: User = Depends(require_permission(Permission.FULL_ADMIN_PANEL_ACCESS)),
     db_session: Session = Depends(get_session),
 ) -> VoiceProviderUpdateSuccess:
     """Remove the default STT status from a voice provider."""
@@ -191,7 +192,7 @@ def deactivate_stt_provider_endpoint(
 def activate_tts_provider_endpoint(
     provider_id: int,
     tts_model: str | None = None,
-    _: User = Depends(current_admin_user),
+    _: User = Depends(require_permission(Permission.FULL_ADMIN_PANEL_ACCESS)),
     db_session: Session = Depends(get_session),
 ) -> VoiceProviderView:
     """Set a voice provider as the default TTS provider."""
@@ -205,7 +206,7 @@ def activate_tts_provider_endpoint(
 @admin_router.post("/providers/{provider_id}/deactivate-tts")
 def deactivate_tts_provider_endpoint(
     provider_id: int,
-    _: User = Depends(current_admin_user),
+    _: User = Depends(require_permission(Permission.FULL_ADMIN_PANEL_ACCESS)),
     db_session: Session = Depends(get_session),
 ) -> VoiceProviderUpdateSuccess:
     """Remove the default TTS status from a voice provider."""
@@ -217,7 +218,7 @@ def deactivate_tts_provider_endpoint(
 @admin_router.post("/providers/test")
 async def test_voice_provider(
     request: VoiceProviderTestRequest,
-    _: User = Depends(current_admin_user),
+    _: User = Depends(require_permission(Permission.FULL_ADMIN_PANEL_ACCESS)),
     db_session: Session = Depends(get_session),
 ) -> VoiceProviderUpdateSuccess:
     """Test a voice provider connection by making a real API call."""
@@ -279,7 +280,7 @@ async def test_voice_provider(
 @admin_router.get("/providers/{provider_id}/voices")
 def get_provider_voices(
     provider_id: int,
-    _: User = Depends(current_admin_user),
+    _: User = Depends(require_permission(Permission.FULL_ADMIN_PANEL_ACCESS)),
     db_session: Session = Depends(get_session),
 ) -> list[VoiceOption]:
     """Get available voices for a provider."""
@@ -303,7 +304,7 @@ def get_provider_voices(
 @admin_router.get("/voices")
 def get_voices_by_type(
     provider_type: str,
-    _: User = Depends(current_admin_user),
+    _: User = Depends(require_permission(Permission.FULL_ADMIN_PANEL_ACCESS)),
 ) -> list[VoiceOption]:
     """Get available voices for a provider type.
 
