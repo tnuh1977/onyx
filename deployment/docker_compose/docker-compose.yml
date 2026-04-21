@@ -44,6 +44,8 @@ services:
       dockerfile: Dockerfile
       args:
         - ENABLE_CRAFT=${ENABLE_CRAFT:-false}
+        - UV_CONCURRENCY=${UV_CONCURRENCY:-2}
+        - UV_HTTP_TIMEOUT=${UV_HTTP_TIMEOUT:-120}        
     command: >
       /bin/sh -c "alembic upgrade head &&
       echo \"Starting Onyx Api Server\" &&
