@@ -14,7 +14,8 @@ ARG ENABLE_CRAFT=false
 # DO_NOT_TRACK is used to disable telemetry for Unstructured
 ENV DANSWER_RUNNING_IN_DOCKER="true" \
     DO_NOT_TRACK="true" \
-    PLAYWRIGHT_BROWSERS_PATH="/app/.cache/ms-playwright"
+    PLAYWRIGHT_BROWSERS_PATH="/app/.cache/ms-playwright" \
+    UV_HTTP_TIMEOUT="300"
 
 # Create non-root user for security best practices
 RUN groupadd -g 1001 onyx && \
